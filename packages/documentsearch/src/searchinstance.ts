@@ -1,14 +1,14 @@
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import { IDisplayState, ISearchProvider, IFiltersType } from './interfaces';
-import { createSearchOverlay } from './searchoverlay';
-
 import { MainAreaWidget } from '@jupyterlab/apputils';
-import { nullTranslator, ITranslator } from '@jupyterlab/translation';
+import { NotebookPanel } from '@jupyterlab/notebook';
+import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 import { IDisposable } from '@lumino/disposable';
 import { ISignal, Signal } from '@lumino/signaling';
 import { Widget } from '@lumino/widgets';
+import { IDisplayState, IFiltersType, ISearchProvider } from './interfaces';
+import { createSearchOverlay } from './searchoverlay';
 
 /**
  * Represents a search on a single widget.
@@ -31,7 +31,7 @@ export class SearchInstance implements IDisposable {
       overlayState: this._displayState,
       onCaseSensitiveToggled: this._onCaseSensitiveToggled.bind(this),
       onRegexToggled: this._onRegexToggled.bind(this),
-      onHightlightNext: this._highlightNext.bind(this),
+      onHighlightNext: this._highlightNext.bind(this),
       onHighlightPrevious: this._highlightPrevious.bind(this),
       onStartQuery: this._startQuery.bind(this),
       onReplaceCurrent: this._replaceCurrent.bind(this),
@@ -45,6 +45,7 @@ export class SearchInstance implements IDisposable {
     this._widget.disposed.connect(() => {
       this.dispose();
     });
+
     this._searchWidget.disposed.connect(() => {
       this._widget.activate();
       this.dispose();
@@ -55,6 +56,21 @@ export class SearchInstance implements IDisposable {
       // Offset the position of the search widget to not cover the toolbar.
       this._searchWidget.node.style.top = `${this._widget.toolbar.node.clientHeight}px`;
     }
+
+    if (this._widget instanceof NotebookPanel) {
+      this._widget.content.activeCellChanged.connect(() => {
+        if (
+          this._displayState.query &&
+          this._displayState.filters.selectedCells
+        ) {
+          void this._startQuery(
+            this._displayState.query,
+            this._displayState.filters
+          );
+        }
+      });
+    }
+
     this._displaySearchWidget();
   }
 
@@ -218,7 +234,7 @@ export class SearchInstance implements IDisposable {
     forceFocus: true,
     replaceText: '',
     replaceEntryShown: false,
-    filters: { output: true },
+    filters: { output: true, selectedCells: false },
     filtersOpen: false
   };
 

@@ -114,10 +114,11 @@ if [[ $GROUP == integrity2 ]]; then
     # Make sure the storybooks build.
     jlpm run build:storybook
 
+    jlpm config set prefix ~/.yarn
+
     # Make sure we have CSS that can be converted with postcss
     jlpm global add postcss postcss-cli
 
-    jlpm config set prefix ~/.yarn
     ~/.yarn/bin/postcss packages/**/style/*.css --dir /tmp
 
     # run twine check on the python build assets.
@@ -148,7 +149,7 @@ if [[ $GROUP == integrity3 ]]; then
 
     # make sure we can patch release
     jlpm bumpversion release --force  # switch to final
-    jlpm patch:release --force
+    jlpm bumpversion patch --force
 
     # make sure we can bump major JS releases
     jlpm bumpversion minor --force
@@ -164,6 +165,15 @@ if [[ $GROUP == release_check ]]; then
     jlpm run publish:js --dry-run
     jlpm run prepare:python-release
     ./scripts/release_test.sh
+
+    # Prep for using verdaccio during publish
+    node buildutils/lib/local-repository.js start
+    npm whoami
+    pushd packages/application
+    npm version patch
+    npm publish
+    popd
+    node buildutils/lib/local-repository.js stop
 fi
 
 if [[ $GROUP == examples ]]; then
@@ -216,8 +226,11 @@ if [[ $GROUP == usage ]]; then
     jupyter labextension build extension
 
     # Test develop script with hyphens and underscores in the module name
+    pip install -e test-hyphens
     jupyter labextension develop test-hyphens --overwrite --debug
+    pip install -e test_no_hyphens
     jupyter labextension develop test_no_hyphens --overwrite --debug
+    pip install -e test-hyphens-underscore
     jupyter labextension develop test-hyphens-underscore --overwrite --debug
 
     python -m jupyterlab.browser_check
@@ -366,7 +379,7 @@ if [[ $GROUP == usage2 ]]; then
 fi
 
 
-if [[ $GROUP == splice_source ]];then
+if [[ $GROUP == splice_source ]]; then
     # Run the integrity script to link binary files
     jlpm integrity
 
